@@ -118,9 +118,6 @@ def lvn():
             # Map variable names to indeces of `values`
             variables = {}
 
-            # Map old names to new names for variables needing renaming
-            # renamed = {}
-            
             # Mark candidates for renaming
             assigned_later = set()
             for instr in reversed(block):
@@ -169,12 +166,9 @@ def lvn():
                     
                         if 'dest' in instr:
                             v = Value(values, instr['op'], instr['type'], args)
-                            # if instr['dest'] in renamed:
-                                # renamed.pop(instr['dest'])
 
                             if 'rename' in instr:
                                 name = new_name(instr['dest'])
-                                # renamed[instr['dest']] = name
                                 variables[instr['dest']] = variables[name] = index_of(values, v, name=name)
                                 instr['dest'] = name
                                 instr.pop('rename')
@@ -182,10 +176,6 @@ def lvn():
                                 variables[instr['dest']] = index_of(values, v, name=instr['dest'])
 
                 newinstr += [instr]
-            print('block:', file=sys.stderr)
-            for i,v in enumerate(values):
-                print('[{}]: {}'.format(i, v), file=sys.stderr)
-            print('vars:{}\n'.format(variables), file=sys.stderr)
 
         func['instrs'] = newinstr
 
