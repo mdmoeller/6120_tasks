@@ -1,0 +1,13 @@
+# ARGS: 7, 10
+
+# Tricky example from end of Adrian lecture
+@main(a: int, b: int) {
+  x: int = add a b;
+  z: int = mul b a;
+  three: int = const 3;
+  x: int = add z three;
+
+  y: int = add a b;
+  print y;
+
+}

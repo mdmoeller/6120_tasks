@@ -1,0 +1,12 @@
+# ARGS: 9
+@main(x: int) {
+  two: int = const 2;
+  three: int = const 3;
+  a: int = add x two;
+  b: int = add two x;
+  c: int = mul a three;
+  d: int = mul three a;
+  f: int = add three d;
+  e: int = add c f;
+  print e;
+}

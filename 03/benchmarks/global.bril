@@ -1,0 +1,18 @@
+# ARGS: 7
+
+# Compute the Collatz sequence from *n*. This may not terminate for all *n*, but
+# it is at least known to terminate for all *n* up to a large value.
+# see https://en.wikipedia.org/wiki/Collatz_conjecture
+
+@main(x: int) {
+
+  a: int = const 2;
+  b: int = const 7;
+  c: int = const 6;
+  d: int = add b c;
+  e: int = add a a;
+
+.ending:
+  print d;
+  ret;
+}

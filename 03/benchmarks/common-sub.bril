@@ -1,0 +1,15 @@
+@main() {
+
+  a: int = const 2;
+  b: int = const 3;
+  c: int = const 2;
+  d: int = const 3;
+  e: int = add a b;
+  f: int = add c d;
+
+  g: int = mul e f;
+
+.ending:
+  print g;
+  ret;
+}

@@ -1,0 +1,9 @@
+@main() {
+
+  a: int = const 2;
+  a: int = const 7;
+
+.ending:
+  print a;
+  ret;
+}
