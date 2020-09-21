@@ -14,13 +14,16 @@ ARITH = 'add', 'mul', 'div'
 
 class Value:
 
-    def __init__(self, vals, oper, args):
+    def __init__(self, vals, oper, t,  args):
 
         # list of all values
         self.values = vals
 
         # node type of this Value
         self.oper = oper
+
+        # type of this value
+        self.t = t
 
         # list of indeces into vals reperesenting the args to this value
         if oper in COMMUTE:
@@ -33,7 +36,7 @@ class Value:
         self.canonical = []
 
     def __eq__(self, other):
-        if self.oper != other.oper:
+        if self.oper != other.oper or self.oper == 'call' or self.t != other.t:
             return False
         
         for i,a in enumerate(self.args):
@@ -51,7 +54,7 @@ class Value:
 def index_of(values, val, name=[]):
 
     try:
-        return values.index(val)  # linear search, eeek (TODO fix this).
+        return values.index(val)  # linear search, eeek
     except ValueError:
         values += [val]
         if name:
@@ -88,21 +91,23 @@ def lvn():
 
         newinstr = []
 
+        print(func['name'], file=sys.stderr)
+
         # Deal with the weird condition where a variable might be reassigned:
         dests = [instr['dest'] for instr in func['instrs'] if 'dest' in instr]
         all_names = set(dests)
         for args in [instr['args'] for instr in func['instrs'] if 'args' in instr]:
             all_names |= set(args)
 
-        # Return a new name for a given variable needing renaming
+        # Return a new name for a given variable needing renaming.
+        # After discussion in class, realized this is too conversative (i.e. not
+        # necssary).
         def new_name(old_name):
             name = "_" + old_name
             while name in all_names:
                 name = "_" + name
             all_names.add(name)
             return name
-        
-            
 
 
         for block in form_blocks(func['instrs']):
@@ -114,7 +119,7 @@ def lvn():
             variables = {}
 
             # Map old names to new names for variables needing renaming
-            renamed = {}
+            # renamed = {}
             
             # Mark candidates for renaming
             assigned_later = set()
@@ -131,23 +136,26 @@ def lvn():
                     # const instruction is special because the args aren't
                     # variable names
                     if instr['op'] == 'const':
-                        v = Value(values, 'const', [instr['value']])
-                        variables[instr['dest']] = index_of(values, v, name=instr['dest'])
+                        v = Value(values, 'const', instr['type'], [instr['value']])
+                        constval = index_of(values, v, name=instr['dest'])
+                        variables[instr['dest']] = constval
 
                     # id is special in that we can just reuse the value
                     if instr['op'] == 'id' and instr['args'][0] in variables:
-                        variables[instr['dest']] = variables[instr['args'][0]]
+                        copyval = variables[instr['args'][0]]
+                        variables[instr['dest']] = copyval
+                        instr['args'] = [values[copyval].canonical]
 
                     # The other ops use variable names:
                     elif 'args' in instr:
                         args = []
                         canon_args = []
                         for arg in instr['args']:
-                            if arg in renamed:
-                                arg = renamed[arg]
+                            # if arg in renamed:
+                                # arg = renamed[arg]
 
                             if arg not in variables:
-                                v = Value(values, 'nonloc', [arg])
+                                v = Value(values, 'nonloc', 'nonloc', [arg])
                                 variables[arg] = index_of(values, v, name=arg)
                                 
                             idx = variables[arg]
@@ -160,23 +168,24 @@ def lvn():
 
                     
                         if 'dest' in instr:
-                            v = Value(values, instr['op'], args)
-                            if instr['dest'] in renamed:
-                                renamed.pop(instr['dest'])
+                            v = Value(values, instr['op'], instr['type'], args)
+                            # if instr['dest'] in renamed:
+                                # renamed.pop(instr['dest'])
 
                             if 'rename' in instr:
                                 name = new_name(instr['dest'])
-                                renamed[instr['dest']] = name
+                                # renamed[instr['dest']] = name
+                                variables[instr['dest']] = variables[name] = index_of(values, v, name=name)
                                 instr['dest'] = name
-                                variables[name] = index_of(values, v, name=name)
                                 instr.pop('rename')
                             else:
                                 variables[instr['dest']] = index_of(values, v, name=instr['dest'])
 
-
-
-
                 newinstr += [instr]
+            print('block:', file=sys.stderr)
+            for i,v in enumerate(values):
+                print('[{}]: {}'.format(i, v), file=sys.stderr)
+            print('vars:{}\n'.format(variables), file=sys.stderr)
 
         func['instrs'] = newinstr
 

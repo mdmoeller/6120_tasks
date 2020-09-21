@@ -1,6 +1,6 @@
 extract = 'total_dyn_inst: (\d+)'
 benchmarks = '../../bril/benchmarks/*.bril'
-timeout = 15
+timeout = 30
 
 [runs.baseline]
 pipeline = [
