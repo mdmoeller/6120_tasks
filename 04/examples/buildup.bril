@@ -1,0 +1,8 @@
+@main(x: int) {
+  one: int = const 1;
+.next:
+  two: int = const 2;
+.last:
+  three: int = const 3;
+  ret;
+}

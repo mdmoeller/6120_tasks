@@ -1,0 +1,33 @@
+func: main
+  b0:
+    consts in: 
+    consts out:v0: 23789216  x: 23789216  v1: 1748698766  y: 1748698766  v2: 23789216  v3: 1748698766  f: ?  v4: ?  v5: 0  
+
+
+func: mod
+  b0:
+    consts in: 
+    consts out:v0: ?  v1: ?  v2: ?  v3: ?  v4: ?  v5: ?  v6: ?  result: ?  v7: ?  
+
+
+func: gcd
+  b0:
+    consts in: 
+    consts out:v0: 0  zero: 0  v1: ?  v2: 0  
+
+
+  for.cond.5:
+    consts in: v7: ?  v9: ?  v10: ?  a: ?  v0: 0  zero: 0  v11: ?  v12: ?  v13: 0  v8: ?  b: ?  v1: ?  v2: 0  temp: ?  
+    consts out:v7: ?  v9: ?  v10: ?  a: ?  v0: 0  zero: 0  v11: ?  v12: ?  v13: 0  v8: ?  b: ?  v1: ?  v2: 0  temp: ?  
+
+
+  for.body.5:
+    consts in: v7: ?  v9: ?  v2: 0  v10: ?  a: ?  v1: ?  v0: 0  zero: 0  v11: ?  v12: ?  v13: 0  v8: ?  b: ?  temp: ?  
+    consts out:v7: ?  v9: ?  v2: 0  v10: ?  a: ?  v1: ?  v0: 0  zero: 0  v11: ?  v12: ?  v13: 0  v8: ?  b: ?  temp: ?  
+
+
+  for.end.5:
+    consts in: v7: ?  v9: ?  v2: 0  v10: ?  a: ?  v1: ?  v0: 0  zero: 0  v11: ?  v12: ?  v13: 0  v8: ?  b: ?  temp: ?  
+    consts out:v7: ?  v9: ?  v2: 0  v10: ?  a: ?  v1: ?  v0: 0  zero: 0  v11: ?  v12: ?  v13: 0  v8: ?  b: ?  temp: ?  v16: ?  
+
+

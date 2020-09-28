@@ -1,0 +1,9 @@
+@main(x: bool) {
+  one: int = const 1;
+  br x .next .last;
+.next:
+  one: int = const 2;
+.last:
+  two: int = const 2;
+  ret;
+}

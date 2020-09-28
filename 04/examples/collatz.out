@@ -1,0 +1,36 @@
+func: main
+  b0:
+    consts in: 
+    consts out:one: 1  two: 2  three: 3  
+
+
+  cond:
+    consts in: one: 1  two: 2  doublehalf: ?  half: ?  three: 3  x: ?  
+    consts out:one: 1  two: 2  doublehalf: ?  half: ?  three: 3  x: ?  
+
+
+  loop:
+    consts in: one: 1  two: 2  doublehalf: ?  half: ?  three: 3  x: ?  
+    consts out:one: 1  two: 2  doublehalf: ?  half: ?  three: 3  x: ?  
+
+
+  even:
+    consts in: one: 1  two: 2  doublehalf: ?  half: ?  three: 3  x: ?  
+    consts out:one: 1  two: 2  doublehalf: ?  half: ?  three: 3  x: ?  
+
+
+  odd:
+    consts in: one: 1  two: 2  doublehalf: ?  half: ?  three: 3  x: ?  
+    consts out:one: 1  two: 2  doublehalf: ?  half: ?  three: 3  x: ?  
+
+
+  print:
+    consts in: half: ?  one: 1  three: 3  two: 2  x: ?  doublehalf: ?  
+    consts out:half: ?  one: 1  three: 3  two: 2  x: ?  doublehalf: ?  
+
+
+  end:
+    consts in: one: 1  two: 2  doublehalf: ?  half: ?  three: 3  x: ?  
+    consts out:one: 1  two: 2  doublehalf: ?  half: ?  three: 3  x: ?  
+
+

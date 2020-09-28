@@ -1,0 +1,12 @@
+@main(x: bool) {
+  one: int = const 1;
+  br x .if .else;
+.if:
+  y: bool = not x;
+  z: int = add one one;
+  jmp .end;
+.else:
+  two: int = const 2;
+.end:
+  ret;
+}

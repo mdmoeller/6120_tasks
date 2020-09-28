@@ -1,0 +1,11 @@
+@main(x: int) {
+  one: int = const 1;
+.next:
+  two: int = const 2;
+.last:
+  three: int = add one two;
+  six: int = mul two three;
+  four: int = sub six two;
+  zero: int = div one three;
+  ret;
+}
