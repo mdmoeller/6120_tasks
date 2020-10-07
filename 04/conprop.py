@@ -6,96 +6,7 @@
 
 import json
 import sys
-
-
-TERM = 'jmp', 'br', 'ret'
-
-# From Lesson 2
-def form_blocks(body):
-    cur_block = []
-
-    for inst in body:
-        if 'op' in inst:
-            cur_block.append(inst)
-
-            # check for term
-            if inst['op'] in TERM:
-                yield cur_block
-                cur_block = []
-
-        else: # label
-            if len(cur_block) != 0:
-                yield cur_block
-
-            cur_block = [inst]
-
-    if len(cur_block) != 0:
-        yield cur_block
-
-
-# Returns (names, blocks, edges), where:
-# names: a list of block names
-# blocks: the list of blocks themselves
-# edges: idx->idx map of successors
-def cfg(func):
-    names = []
-    blocks = []
-
-    # Map label -> block idx for that label
-    labels = {}
-
-    # Edges of the CFG
-    edges = {} 
-
-    # When we encounter jumps to labels that haven't appeared yet, add the
-    # label here with a list of blocks that need to jump TO that label
-    # label -> [list of blocks forward-jumping to it]
-    resolve = {} 
-
-    def make_edge(idx, label):
-        if label in labels:
-            if idx in edges:
-                edges[idx].append(labels[label])
-            else:
-                edges[idx] = [labels[label]]
-        else:
-            if label in resolve:
-                resolve[label].append(idx)
-            else:
-                resolve[label] = [idx]
-
-    for i,block in enumerate(form_blocks(func['instrs'])):
-
-        blocks.append(block)
-
-        name = "b" + str(i)
-
-        if 'label' in block[0]:
-            name = block[0]['label']
-            labels[name] = i
-
-        names.append(name)
-
-        if block[-1]['op'] == 'br' or block[-1]['op'] == 'jmp':
-            for label in block[-1]['labels']:
-                make_edge(i, label)
-
-        elif block[-1]['op'] != 'ret':
-            edges[i] = [i+1]
-
-
-    for lab,idcs in resolve.items():
-        for idx in idcs:
-            if idx in edges:
-                edges[idx].append(labels[lab])
-            else:
-                edges[idx] = [labels[lab]]
-
-    # If we added i+1 for the last block, remove it (there is no successor)
-    if (len(names)-1) in edges and len(names) in edges[len(names)-1]:
-        edges.pop(len(names)-1)
-
-    return (names, blocks, edges)
+from brilpy import *
 
 # ------------------------------------------------------------------------------
 # Worklist functions for computing `defined variables'
@@ -141,7 +52,7 @@ def cp_init(func, graph):
         for arg in func['args']:
             in_b[0][arg['name']] = None # Args are NOT constant
 
-    for i in range(len(graph[0])-1):
+    for i in range(graph.n - 1):
         in_b.append({})
         out_b.append({})
     return (in_b, out_b)
@@ -225,33 +136,24 @@ def cp_merge(pred_list):
 # ------------------------------------------------------------------------------
 
 def run_worklist(func, init, xfer, merge):
-    graph = (names, blocks, edges) = cfg(func)
-
-    # compute edges_r to get predecessors
-    preds = {}
-    for k,v in edges.items():
-        for d in v:
-            if d in preds:
-                preds[d] += [k]
-            else:
-                preds[d] = [k]
+    graph = CFG(func)
 
     (in_b, out_b) = init(func, graph)
 
-    worklist = list(range(len(names)))
+    worklist = list(range(graph.n))
 
     while worklist:
         b = worklist[0]
         worklist = worklist[1:]
 
-        in_b[b] = merge([out_b[x] for x in preds[b]]) if b in preds else {}
+        in_b[b] = merge([out_b[x] for x in graph.preds[b]]) if b in graph.preds else {}
 
         out_b_copy = out_b[b].copy()
 
-        out_b[b] = xfer(in_b[b], blocks[b])
+        out_b[b] = xfer(in_b[b], graph.blocks[b])
 
-        if out_b[b] != out_b_copy and b in edges:
-            worklist += edges[b]
+        if out_b[b] != out_b_copy and b in graph.edges:
+            worklist += graph.edges[b]
 
     return (in_b, out_b)
         
@@ -271,11 +173,11 @@ def main():
     for func in prog['functions']:
 
         print("func: {}".format(func['name']))
-        g = cfg(func)
+        g = CFG(func)
         
         (in_b, out_b) = run_worklist(func, cp_init, cp_xfer, cp_merge)
 
-        for i,name in enumerate(g[0]):
+        for i,name in enumerate(g.names):
             print("  {}:\n    consts in: {}\n    consts out:{}\n\n".format(name,
                 pretty_dict(in_b[i]), pretty_dict(out_b[i])))
 
