@@ -6,9 +6,6 @@ import dom
 from brilpy import *
 from functools import reduce
 
-
-
-
 def main():
     prog = json.load(sys.stdin)
 
@@ -35,21 +32,16 @@ def main():
         # for each block, these are the phis we'll add at the end. Each has a
         # map from orig.var -> to a map that will become the instruction itself,
         phis = []
-        # for each block, a map from var -> set of blocks that have defns
-        phis_added = []
         for i in range(g.n):
             phis.append({})
-            phis_added.append({})
 
         # Following pseudocode from Lesson 5 notes
         # ``Step one''
         for v,vdefs in defs.items():
             for d in vdefs:
                 for b in frontier[d]:
-                    if v in phis_added[b]:
-                        phis_added[b][v].add(d)
-                    else:
-                        phis_added[b][v] = set([d])
+                    if v not in phis[b]:
+                        phis[b][v] = {'op':'phi', 'args':[], 'labels':[]} # will handle dest/args later
 
                     defs[v].append(b)
 
@@ -57,25 +49,33 @@ def main():
         stack = {}
         next_name = {}
         for v in defs.keys():
-            stack[v] = [v]  # everything starts with original name
+            stack[v] = []
             next_name[v] = 0
+
+        # args' bottom-stack names are their original names
+        if 'args' in func:
+            for arg in func['args']:
+                stack[arg['name']] = [arg['name']]
 
 
         def new_name(ogvar):
             n = ogvar + '_' + str(next_name[ogvar])
             next_name[ogvar] += 1
+            stack[ogvar].append(n)
             return n
-
-        # for i,p in enumerate(phis_added):
-            # print("{} {}".format(i, p))
 
         # b: index of block
         def rename(b):
 
+            # print("{} {}".format(b, g.names[b]))
+            # print(stack)
+
             # map from vars to count of names pushed (so we can pop them)
             push_count = {}
 
-            for p in phis[b]
+            for v,p in phis[b].items():
+                p['dest'] = new_name(v)
+
             for instr in g.blocks[b]:
 
                 # replace old names with stack names
@@ -88,7 +88,6 @@ def main():
                 # replace destination with new name (and push onto stack)
                 if 'dest' in instr:
                     name = new_name(instr['dest'])
-                    stack[instr['dest']].append(name)
                     if instr['dest'] in push_count:
                         push_count[instr['dest']] += 1
                     else:
@@ -97,11 +96,17 @@ def main():
                     instr['dest'] = name
 
             for s in g.edges[b]:
-                for v in phis_added[s].keys():
-                    if v in phis[s]:
-                        phis[s][v].append((stack[v][-1], g.names[b]))
+
+                for v in set(phis[s].keys()): # (copy keyset so we can remove)
+
+                    # we found a path to this block where it is unassigned: this phi should go away
+                    if not stack[v]: 
+                        phis[s].pop(v)
+
+                    # otherwise update the var-use to use the current name
                     else:
-                        phis[s][v] = [(stack[v][-1], g.names[b])]
+                        phis[s][v]['args'].append(stack[v][-1])
+                        phis[s][v]['labels'].append(g.names[b])
 
             if b in domtree:
                 for b_dom in domtree[b]:
@@ -124,13 +129,10 @@ def main():
             else:
                 newinstrs.append({'label': g.names[i]})
 
-            for v,args in phis[i].items():
-                if len(phis_added[i][v]) > 1: # don't need a phi if only one label
-                    inst = {'op': 'phi', 'dest': v, 'labels':[], 'args':[]}
-                    for arg in args:
-                        inst['args'].append(arg[0])
-                        inst['labels'].append(arg[1])
-                    newinstrs.append(inst)
+            for v,p in phis[i].items():
+                # don't need a phi if only one label or arg
+                if len(set(p['labels'])) > 1 and len(set(p['args'])) > 1: 
+                    newinstrs.append(p)
                 
             newinstrs += b
 

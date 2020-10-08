@@ -71,11 +71,11 @@ class CFG:
 
             self.names.append(name)
 
-            if block[-1]['op'] == 'br' or block[-1]['op'] == 'jmp':
+            if 'op' in block[-1] and (block[-1]['op'] == 'br' or block[-1]['op'] == 'jmp'):
                 for label in block[-1]['labels']:
                     make_edge(i, label)
 
-            elif block[-1]['op'] != 'ret':
+            elif 'op' in block[-1] and block[-1]['op'] != 'ret':
                 self.edges[i] = [i+1]
 
         self.n = len(self.names)
@@ -106,9 +106,7 @@ class CFG:
         visited = []
         colors = [WHITE] * self.n
 
-        print(colors)
         def dfs_visit(node):
-            print("{} {}".format(node, colors))
             if colors[node] == WHITE:
                 colors[node] = GRAY
                 if node in self.edges:
