@@ -30,7 +30,7 @@ Instrument some code:
 
     $ cd ./ex
     $ clang -Xclang -load -Xclang ../build/instrumenter/libInstrumPass.so -c tfe.c
-    $ clang ../instrumenter/count.o tfe.o -o tfe
+    $ clang ../instrumenter/count.o tfe.o -o tfe -lcurses
 
 Try it out!:
 
