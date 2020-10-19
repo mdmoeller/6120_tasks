@@ -29,7 +29,7 @@ namespace {
 
             size_t i = 0;
 
-            /* Now go through and prepend instructions to increment it */
+            /* Add the logger to every block */
             for (auto& b : F) {
                 IRBuilder<> builder(b.getFirstNonPHI());
 
@@ -41,7 +41,7 @@ namespace {
                 i++;
             }
 
-            /* Add setup calls to the entry block of main */
+            /* Add setup calls to the entry block of main only */
             if (F.getName() == "main") {
                 Module *P = F.getParent();
 
