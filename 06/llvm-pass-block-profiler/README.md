@@ -9,7 +9,8 @@ exits.
 
 I have included a program I wrote some years ago with functions to play
 2048 (https://play2048.co) using various strategies. It used in the example
-below.
+below. The example depends on ncurses. I have also included a file, ex/out.txt,
+the output of the following example.
 
 Build the pass:
 
