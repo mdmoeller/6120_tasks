@@ -8,9 +8,9 @@ function of a file. These counts are printed to stdout as soon as the program
 exits.
 
 I have included a program I wrote some years ago with functions to play
-2048 (https://play2048.co) using various strategies. It used in the example
-below. The example depends on ncurses. I have also included a file, ex/out.txt,
-the output of the following example.
+2048 (https://play2048.co) using various strategies, which is used in the example
+below. (sadly the program depends on ncurses). I have also included a file,
+ex/out.txt, the output of the example.
 
 Build the pass:
 
