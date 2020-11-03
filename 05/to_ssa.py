@@ -2,7 +2,7 @@
 
 import sys
 import json
-import dom
+from dom import Dominators
 from brilpy import *
 from functools import reduce
 
@@ -11,10 +11,57 @@ def main():
 
     for func in prog['functions']:
 
+        # Add dummy id operations for each argument.
+        # This is a bit of a hack because of the fact that you can reassign to
+        # the args anywhere in the function.
+        # We don't want the first block to be a place we can jump to, because
+        # we can't have a phi as the first instruction to disambiguate args
+        if 'args' in func:
+            for a in func['args']:
+                func['instrs'] = [{'label':'pre_entry'}, \
+                                  {'op':'id', 'args':[a['name']], 'type':a['type'], 'dest':a['name']}] + \
+                                  func['instrs']
+
+        # Next we need to canonicalize labels, in case any labels appear
+        # directly in a row, this would break things later
+        label_last = False
+        last = None
+        i = 0
+        while i < len(func['instrs']):
+            inst = func['instrs'][i]
+            if 'label' in inst:
+                if label_last:
+                    for j in func['instrs']:
+                        if 'labels' in j and inst['label'] in j['labels']:
+                            labels = []
+                            for lbl in j['labels']:
+                                if lbl == inst['label']:
+                                    labels.append(last['label'])
+                                else:
+                                    labels.append(lbl)
+                            j['labels'] = labels
+                    func['instrs'].pop(i)
+
+                else:
+                    i += 1
+                    last = inst
+                    label_last = True
+            else:
+                i += 1
+                label_last = False
+
+        # This last bit is just because even after the above, a valid bril
+        # program could end with a label, but we don't want that (i.e., an empty
+        # block
+        if label_last:
+            func['instrs'].append({'op':'nop'});
+
+
         g = CFG(func)
 
-        # Get all the dominance information
-        (doms, dom_by, domtree, frontier) = dom.dom(func)
+
+        domins = Dominators(func)
+
 
         defs = {}
         for i,b in enumerate(g.blocks):
@@ -39,11 +86,12 @@ def main():
         # ``Step one''
         for v,vdefs in defs.items():
             for d in vdefs:
-                for b in frontier[d]:
+                for b in domins.frontier[d]:
                     if v not in phis[b]:
                         phis[b][v] = {'op':'phi', 'args':[], 'labels':[]} # will handle dest/args later
 
-                    defs[v].append(b)
+                    if b not in defs[v]:
+                        defs[v].append(b)
 
         # ``Step two''
         stack = {}
@@ -67,8 +115,6 @@ def main():
         # b: index of block
         def rename(b):
 
-            # print("{} {}".format(b, g.names[b]))
-            # print(stack)
 
             # map from vars to count of names pushed (so we can pop them)
             push_count = {}
@@ -77,6 +123,7 @@ def main():
                 p['dest'] = new_name(v)
 
             for instr in g.blocks[b]:
+
 
                 # replace old names with stack names
                 if 'args' in instr:
@@ -108,8 +155,8 @@ def main():
                         phis[s][v]['args'].append(stack[v][-1])
                         phis[s][v]['labels'].append(g.names[b])
 
-            if b in domtree:
-                for b_dom in domtree[b]:
+            if b in domins.dom_tree:
+                for b_dom in domins.dom_tree[b]:
                     rename(b_dom)
 
             # pop all the names
@@ -123,7 +170,6 @@ def main():
 
         for i,b in enumerate(g.blocks):
             if 'label' in b[0]:
-                # print("label={} instr={}".format(b[0]['label'], b[0]))
                 newinstrs.append(b[0])
                 b.pop(0)
             else:

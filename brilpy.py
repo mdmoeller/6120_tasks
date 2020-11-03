@@ -31,9 +31,9 @@ def form_blocks(body):
 
 class CFG:
     # Constructs a new cfg (names, blocks, edges), where:
-# names: a list of block names
-# blocks: the list of blocks themselves
-# edges: idx->idx map of successors
+    # names: a list of block names
+    # blocks: the list of blocks themselves
+    # edges: idx->idx map of successors
     def __init__(self, func):
         self.names = []
         self.blocks = []
@@ -97,8 +97,18 @@ class CFG:
             for d in v:
                 self.preds[d].append(k)
 
-    # Return the indeces in reverse-post-order 
-    def rpo(self):
+    # perform a dfs in the specified order, calling pre(i) and post(i) upon
+    # previsit and posvisit of i, respectively.
+    # next_tree is called with no args after each time dfs_visit finishes a
+    # connected component.
+    def dfs(self, order=None, pre=None, post=None, next_tree=None, edges=None):
+
+        if not order:
+            order = list(range(self.n))
+
+        if not edges:
+            edges = self.edges
+
         WHITE = 0
         GRAY = 1
         BLACK = 2
@@ -109,23 +119,76 @@ class CFG:
         def dfs_visit(node):
             if colors[node] == WHITE:
                 colors[node] = GRAY
-                if node in self.edges:
-                    for v in self.edges[node]:
-                        dfs_visit(v)
+                if pre:
+                    pre(node)
+                for v in edges[node]:
+                    dfs_visit(v)
                 colors[node] = BLACK
-                visited.append(node)
+                if post:
+                    post(node)
 
-        for i in range(self.n):
+        for i in order:
             dfs_visit(i)
+            if next_tree:
+                next_tree()
 
+    # Return the indeces in reverse-post-order 
+    def rpo(self):
+        visited = []
+        def post_visit(i):
+            visited.append(i)
+
+        self.dfs(post=post_visit)
+        visited.reverse()
         return visited
+
+    # Unused first attempt. Computes SCCs in the graph.
+    def natural_loops(self):
+
+        sccs = []
+        cur = []
+
+        def postv(i):
+            nonlocal cur
+            cur.append(i)
+
+        def nt():
+            nonlocal cur
+            if cur:
+                sccs.append(cur)
+                cur = []
+
+        self.dfs(order=self.rpo(), post=postv, next_tree=nt, edges=self.preds)
+
+        nl_list = []
+
+        for cand in sccs:
+            if len(cand) > 1:
+                nat = True
+                header = -1
+                for b in cand:
+                    for p in self.preds[b]:
+                        if p not in cand:
+                            if header == -1:
+                                header = b
+                            else:
+                                nat = False
+                                break
+                if nat:
+                    cand.remove(header)
+                    nl_list.append([header] + cand)
+
+        return nl_list
+
+
+
 
     def to_dot(self):
         s = "digraph g {\n"
 
         for u,nbrs in enumerate(self.edges):
             for v in nbrs:
-                s += self.names[u] + " -> " + self.names[v] + ";\n"
+                s += self.names[u].replace('.','_') + " -> " + self.names[v].replace('.','_') + ";\n"
 
         s += "}\n"
         return s
@@ -133,3 +196,86 @@ class CFG:
     def print_names(self):
         for i,n in enumerate(self.names):
             print("{} {}".format(i, n))
+
+# ------------------------------------------------------------------------------
+# Dataflow functions for SSA Reaching Definitions
+#   Since we assume SSA, we can map from varname->single block defining
+# ------------------------------------------------------------------------------
+
+def rd_init(func, graph):
+    in_b = []
+    out_b = []
+
+    in_b.append({})
+    out_b.append({})
+
+    if 'args' in func:
+        for arg in func['args']:
+            in_b[0][arg['name']] = 0
+
+    for i in range(graph.n - 1):
+        in_b.append({})
+        out_b.append({})
+    return (in_b, out_b)
+
+
+def rd_xfer(in_b, block, idx):
+
+    out_b = in_b.copy()
+
+    for i,inst in enumerate(block):
+        if 'dest' in inst:
+            if inst['dest'] in out_b and out_b[inst['dest']] != idx:
+                print("warning: illegal redef of var `{}`.".format(inst['dest'])
+                + "This function assumes SSA.", file=sys.stderr)
+            out_b[inst['dest']] = idx
+
+    return out_b
+
+def rd_merge(pred_list):
+
+    result = {}
+
+    for p in pred_list:
+        for k,v in p.items():
+            if k in result and v != result[k]:
+                print("warning: illegal redef of var `{}` (multiple blocks).".format(v) +
+                        " This function assumes SSA.", file=sys.stderr)
+            result[k] = v
+    
+    return result
+
+
+
+# ------------------------------------------------------------------------------
+# Worklist function
+# func: the function object (as loaded from json)
+# init: (func, graph) -> (in_b, out_b): Computes initial datastructures. in_b
+#                                       and out_b are each arrays of size
+#                                       len(blocks).
+# xfer: (in_b, block) -> out_b:         Compute transfer for a single block.
+# merge: List of out_b -> in_b:         Given a list of predecessors' out_b's,
+#                                       compute a single in_b.
+# ------------------------------------------------------------------------------
+
+def run_worklist(func, init, xfer, merge):
+    graph = CFG(func)
+
+    (in_b, out_b) = init(func, graph)
+
+    worklist = list(range(graph.n))
+
+    while worklist:
+        b = worklist[0]
+        worklist = worklist[1:]
+
+        in_b[b] = merge([out_b[x] for x in graph.preds[b]]) if graph.preds[b] else {}
+
+        out_b_copy = out_b[b].copy()
+
+        out_b[b] = xfer(in_b[b], graph.blocks[b], b)
+
+        if out_b[b] != out_b_copy:
+            worklist += graph.edges[b]
+
+    return (in_b, out_b)

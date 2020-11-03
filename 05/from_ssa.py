@@ -2,7 +2,6 @@
 
 import sys
 import json
-import dom
 from brilpy import *
 from functools import reduce
 
@@ -36,7 +35,7 @@ def main():
                 continue
 
             j = 1
-            while 'op' in b[j] and b[j]['op'] == 'phi':
+            while j < len(b) and 'op' in b[j] and b[j]['op'] == 'phi':
                 for k in range(len(b[j]['args'])):
                     inst = {'op': 'id', 'dest': b[j]['dest'],
                             'args':[b[j]['args'][k]]}
