@@ -91,7 +91,7 @@ def lvn():
 
         newinstr = []
 
-        print(func['name'], file=sys.stderr)
+        # print(func['name'], file=sys.stderr)
 
         # Deal with the weird condition where a variable might be reassigned:
         dests = [instr['dest'] for instr in func['instrs'] if 'dest' in instr]
