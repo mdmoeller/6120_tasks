@@ -1,0 +1,2 @@
+x * y * z + w * x * x + w * y + z * z * y
+v2 * v2 * v3 + v4 * v1 * v2 + v1 * v4 * v1 + v4 * v3
