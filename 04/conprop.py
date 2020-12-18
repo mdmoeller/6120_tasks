@@ -15,7 +15,7 @@ from brilpy import *
 def defvars_init(func, graph):
     in_b = [set([a['name'] for a in func['args']])]
     out_b = [set()]
-    for i in range(len(graph[0])-1):
+    for i in range(graph.n-1):
         in_b.append(set())
         out_b.append(set())
     return (in_b, out_b)
@@ -124,40 +124,7 @@ def cp_merge(pred_list):
     return result
     
 
-# ------------------------------------------------------------------------------
-# Worklist function
-# func: the function object (as loaded from json)
-# init: (func, graph) -> (in_b, out_b): Computes initial datastructures. in_b
-#                                       and out_b are each arrays of size
-#                                       len(blocks).
-# xfer: (in_b, block) -> out_b:         Compute transfer for a single block.
-# merge: List of out_b -> in_b:         Given a list of predecessors' out_b's,
-#                                       compute a single in_b.
-# ------------------------------------------------------------------------------
-
-def run_worklist(func, init, xfer, merge):
-    graph = CFG(func)
-
-    (in_b, out_b) = init(func, graph)
-
-    worklist = list(range(graph.n))
-
-    while worklist:
-        b = worklist[0]
-        worklist = worklist[1:]
-
-        in_b[b] = merge([out_b[x] for x in graph.preds[b]]) if b in graph.preds else {}
-
-        out_b_copy = out_b[b].copy()
-
-        out_b[b] = xfer(in_b[b], graph.blocks[b])
-
-        if out_b[b] != out_b_copy and b in graph.edges:
-            worklist += graph.edges[b]
-
-    return (in_b, out_b)
         
-
 
 # ------------------------------------------------------------------------------
 
@@ -175,7 +142,8 @@ def main():
         print("func: {}".format(func['name']))
         g = CFG(func)
         
-        (in_b, out_b) = run_worklist(func, cp_init, cp_xfer, cp_merge)
+        # (in_b, out_b) = run_worklist(func, cp_init, cp_xfer, cp_merge)
+        (in_b, out_b) = run_worklist(func, rd_init, rd_xfer, rd_merge)
 
         for i,name in enumerate(g.names):
             print("  {}:\n    consts in: {}\n    consts out:{}\n\n".format(name,

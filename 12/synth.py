@@ -29,9 +29,6 @@ GRM = """
 """.strip()
 
 def tern(cond, first, second):
-    # print('cond {} {}'.format(cond, type(cond)))
-    # print('first {} {}'.format(first, type(first)))
-    # print('second {} {}'.format(second, type(second)))
     return (cond != 0) * first + (cond == 0) * second
 
 def solve(phi):
