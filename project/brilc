@@ -89,9 +89,9 @@ FUN_FTR = """
 """
 
 # Op translation
-OPS = {'add' : 'add nsw', # nsw?
-       'mul' : 'mul nsw', # nsw?
-       'sub' : 'sub nsw', # nsw?
+OPS = {'add' : 'add',
+       'mul' : 'mul',
+       'sub' : 'sub',
        'div' : 'sdiv',
        'eq'  : 'icmp eq',
        'lt'  : 'icmp slt',
@@ -103,6 +103,9 @@ OPS = {'add' : 'add nsw', # nsw?
 
 }
 
+def is_ptr_type(t):
+    return (isinstance(t, dict) and 'ptr' in t)
+
 # Type translation
 def ttype(briltype):
     if briltype == 'int':
@@ -110,7 +113,7 @@ def ttype(briltype):
     elif briltype == 'bool':
         return 'i1'
 
-    elif isinstance(briltype, dict) and 'ptr' in briltype: # ptr
+    elif is_ptr_type(briltype):
         return ttype(briltype['ptr']) + '*'
 
     else: # name of a struct
@@ -125,9 +128,11 @@ struct_mbr_offsets = {}
 def sizeof(briltype):
     if briltype == 'bool':
         return 1
+    elif is_ptr_type(briltype):
+        return 8
     elif briltype in struct_sizes:
         return struct_sizes[briltype]
-    else:
+    else: #int
         return 8
 
 
@@ -169,14 +174,17 @@ class Context:
     def format_args(self, args, show_types=False):
         alist = []
         for a in args:
-            t = (ttype(self.types[a]) + ' ') if show_types else ''
+            t = self.types[a]
             if a in self.constants:
                 a = self.constants[a]
+                if is_ptr_type(t) and not a:
+                    a = 'null'
             elif a in self.canonical:
                 a = '%' + self.canonical[a]
             else:
                 a = '%' + a
-            alist.append(t + str(a))
+            s = ttype(t) + ' ' + str(a) if show_types else str(a)
+            alist.append(s)
         return ', '.join(alist)
         
     def new_var(self, t):
@@ -245,6 +253,13 @@ def emit_instr(instr, ctxt):
                                                         ttype(struct),
                                                         ctxt.format_args(args[:1], show_types=True),
                                                         struct_mbr_offsets[struct][args[1]]))
+            elif instr['op'] == 'isnull':
+                new_var = ctxt.new_var('int')
+                print('  %{} = ptrtoint {} to i64'.format(new_var,
+                                                          ctxt.format_args(args, show_types=True)))
+                print('  %{} = icmp eq i64 0, %{}'.format(instr['dest'],
+                                                          new_var))
+
                                                                      
 
         # EFFECT operations
