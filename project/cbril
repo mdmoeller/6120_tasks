@@ -89,9 +89,9 @@ FUN_FTR = """
 """
 
 # Op translation
-OPS = {'add' : 'add nsw',
-       'mul' : 'mul nsw',
-       'sub' : 'sub nsw',
+OPS = {'add' : 'add nsw', # nsw?
+       'mul' : 'mul nsw', # nsw?
+       'sub' : 'sub nsw', # nsw?
        'div' : 'sdiv',
        'eq'  : 'icmp eq',
        'lt'  : 'icmp slt',
@@ -110,13 +110,24 @@ def ttype(briltype):
     elif briltype == 'bool':
         return 'i1'
 
-    else: # ptr
+    elif isinstance(briltype, dict) and 'ptr' in briltype: # ptr
         return ttype(briltype['ptr']) + '*'
+
+    else: # name of a struct
+        return '%' + briltype
+
+# name -> size in bytes (maybe a global isn't the best choice here...)
+struct_sizes = {}
+
+# struct name -> mbr name -> mbr offset idx
+struct_mbr_offsets = {}
 
 def sizeof(briltype):
     if briltype == 'bool':
         return 1
-    elif briltype == 'int':
+    elif briltype in struct_sizes:
+        return struct_sizes[briltype]
+    else:
         return 8
 
 
@@ -168,9 +179,10 @@ class Context:
             alist.append(t + str(a))
         return ', '.join(alist)
         
-    def new_var(self):
-        v = '%z' + self.next_int
+    def new_var(self, t):
+        v = 'z' + str(self.next_int)
         self.next_int += 1
+        self.types[v] = t
         return v
 
 def emit_instr(instr, ctxt):
@@ -181,13 +193,12 @@ def emit_instr(instr, ctxt):
     if 'op' in instr:
 
         # VALUE operations:
-        #TODO: alloc load ptradd
         if 'dest' in instr:
             if instr['op'] == 'call':
                 print('  %{} = call {} @__{}({})'.format(instr['dest'],
-                                                       ttype(instr['type']),
-                                                       instr['funcs'][0],
-                                                       ctxt.format_args(args, show_types=True)))
+                                                         ttype(instr['type']),
+                                                         instr['funcs'][0],
+                                                         ctxt.format_args(args, show_types=True)))
 
             elif instr['op'] == 'not':
                 print('  %{} = xor i1 1, {}'.format(instr['dest'], 
@@ -206,11 +217,37 @@ def emit_instr(instr, ctxt):
                     pairs.append('[ {}, %{} ]'.format(ctxt.format_args([a]), lbl))
                 print(s + ', '.join(pairs))
 
-            # elif instr['op'] == 'alloc':
-                # print('  %{} = call i8* @malloc({})')
+            elif instr['op'] == 'alloc':
+                new_var = ctxt.new_var('int')
+                print('  %{} = mul i64 {}, {}'.format(new_var,
+                                                      ctxt.format_args(args),
+                                                      sizeof(instr['type']['ptr'])))
+
+                ptr = ctxt.new_var(None) # the type is a lie! (but we'll never query for it)
+                print('  %{} = call i8* @malloc({})'.format(ptr,
+                                                            ctxt.format_args([new_var], show_types=True)))
+                print('  %{} = bitcast i8* %{} to {}'.format(instr['dest'],
+                                                             ptr,
+                                                             ttype(instr['type'])))
+            elif instr['op'] == 'load':
+                print('  %{} = load {}, {}'.format(instr['dest'],
+                                                   ttype(instr['type']),
+                                                   ctxt.format_args(args, show_types=True)))
+
+            elif instr['op'] == 'ptradd':
+                print('  %{} = getelementptr inbounds {}, {}'.format(instr['dest'],
+                                                                     ttype(instr['type']['ptr']),
+                                                                     ctxt.format_args(args, show_types=True)))
+            elif instr['op'] == 'getmbr':
+                struct = ctxt.types[args[0]]['ptr']
+                print('  %{} = getelementptr inbounds {}, {}, i64 0, i32 {}'.format(
+                                                        instr['dest'],
+                                                        ttype(struct),
+                                                        ctxt.format_args(args[:1], show_types=True),
+                                                        struct_mbr_offsets[struct][args[1]]))
+                                                                     
 
         # EFFECT operations
-        #TODO: store, free
         else: 
             # control: br jmp ret
             if instr['op'] == 'br':
@@ -238,6 +275,15 @@ def emit_instr(instr, ctxt):
                     s.append('  call void @print_{}({})'.format(t, ctxt.format_args([a], show_types=True)))
                 print("\n  call void @print_space()\n".join(s)) # Spaces between args
                 print('  call void @print_newline()')           # Newline at end
+
+            elif instr['op'] == 'free':
+                byte_ptr = ctxt.new_var(None) # the type is a lie! (but we'll never query for it)
+                print('  %{} = bitcast {} to i8*'.format(byte_ptr, 
+                                                         ctxt.format_args(args, show_types=True)))
+                print('  call void @free(i8* %{})'.format(byte_ptr))
+
+            elif instr['op'] == 'store':
+                print('  store {}'.format(ctxt.format_args(reversed(args), show_types=True)))
 
     # LABEL
     else: 
@@ -343,6 +389,29 @@ def main():
     main_args = []
 
     print(PROG_HDR.format(fname, fname))
+
+    # Compute struct size for allocation, 
+    # Build mbr offset reference, and 
+    # Emit LLVM declaration.
+    for struct in prog['structs']:
+        name = struct['name']
+        size = 0
+
+        struct_mbr_offsets[name] = {}
+        
+        mbrs = []
+        for i, mbr in enumerate(struct['mbrs']):
+            size += sizeof(mbr['type'])
+            
+            struct_mbr_offsets[name][mbr['name']] = i
+
+            mbrs.append(ttype(mbr['type']))
+
+        struct_sizes[name] = size
+        print('%{} = type {{ {} }}'.format(name, ', '.join(mbrs)))
+
+
+    # Iterate and emit functions
     for func in prog['functions']:
 
         if (func['name'] == 'main'):

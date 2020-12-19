@@ -122,12 +122,15 @@ def to_ssa(prog):
 
             for instr in g.blocks[b]:
 
-
                 # replace old names with stack names
                 if 'args' in instr:
                     newargs = []
-                    for arg in instr['args']:
-                        newargs.append(stack[arg][-1])
+                    if 'op' in instr and instr['op'] == 'getmbr':
+                        newargs.append(stack[instr['args'][0]][-1])
+                        newargs.append(instr['args'][1])
+                    else:
+                        for arg in instr['args']:
+                            newargs.append(stack[arg][-1])
                     instr['args'] = newargs
 
                 # replace destination with new name (and push onto stack)
